@@ -3,8 +3,8 @@ Redmine::Plugin.register :check_list do
   author 'shinri'
   description 'This is a plugin for Redmine'
   version '0.0.1'
-  url 'http://example.com/path/to/plugin'
-  author_url 'http://example.com/about'
+  url 'https://github.com/shnri/redmine_plugin_checklist'
+  author_url 'https://github.com/shnri'
 end
 
 # Railsの初期化後に実行されるようにする
@@ -17,4 +17,8 @@ Rails.configuration.to_prepare do
     # プリコンパイル対象のファイルを指定
     Rails.application.config.assets.precompile += %w(index.js index.css)
   end
+end
+
+Redmine::Hook::ViewListener.instance_eval do
+  render_on :view_issues_show_description_bottom, :partial => 'plugin_folder/react_mount'
 end
