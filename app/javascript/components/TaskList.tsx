@@ -10,112 +10,21 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import TaskContent from "./TaskContent";
-import { TaskTree } from "../types";
 import { findParentTask, findTaskById } from "../utils";
+import { useTaskTree } from "./TaskTreeProvider";
+import { fetchData, updateTaskList } from "../utils/apiHelper";
 
 export const rootId = "root";
 
 const TaskList: React.FC = () => {
-  const [taskTree, setTaskTree] = useState<TaskTree>({
-    id: rootId,
-    label: "",
-    checked: false,
-    isLayerOpen: true,
-    children: [
-      // {
-      //   id: "1",
-      //   label: "Main Task 1",
-      //   checked: false,
-      //   isLayerOpen: false,
-      //   children: [
-      //     {
-      //       id: "3",
-      //       label: "Subtask 1.1",
-      //       checked: false,
-      //       isLayerOpen: false,
-      //       children: [
-      //         {
-      //           id: "7",
-      //           label: "SubSubtask 1.1.1",
-      //           checked: false,
-      //           isLayerOpen: false,
-      //           children: [],
-      //         },
-      //         {
-      //           id: "8",
-      //           label: "SubSubtask 1.1.2",
-      //           checked: false,
-      //           isLayerOpen: false,
-      //           children: [],
-      //         },
-      //       ],
-      //     },
-      //     {
-      //       id: "4",
-      //       label: "Subtask 1.2",
-      //       checked: false,
-      //       isLayerOpen: false,
-      //       children: [
-      //         {
-      //           id: "9",
-      //           label: "SubSubtask 1.2.1",
-      //           checked: false,
-      //           isLayerOpen: false,
-      //           children: [],
-      //         },
-      //         {
-      //           id: "10",
-      //           label: "SubSubtask 1.2.2",
-      //           checked: false,
-      //           isLayerOpen: false,
-      //           children: [],
-      //         },
-      //       ],
-      //     },
-      //   ],
-      // },
-      // {
-      //   id: "2",
-      //   label: "Main Task 2",
-      //   checked: false,
-      //   isLayerOpen: false,
-      //   children: [
-      //     {
-      //       id: "5",
-      //       label: "Subtask 2.1",
-      //       checked: false,
-      //       isLayerOpen: false,
-      //       children: [
-      //         {
-      //           id: "11",
-      //           label: "SubSubtask 2.1.1",
-      //           checked: false,
-      //           isLayerOpen: false,
-      //           children: [],
-      //         },
-      //         {
-      //           id: "12",
-      //           label: "SubSubtask 2.1.2",
-      //           checked: false,
-      //           isLayerOpen: false,
-      //           children: [],
-      //         },
-      //       ],
-      //     },
-      //     {
-      //       id: "6",
-      //       label: "Subtask 2.2",
-      //       checked: false,
-      //       isLayerOpen: false,
-      //       children: [],
-      //     },
-      //   ],
-      // },
-    ],
-  });
+  const { taskTree, setTaskTree } = useTaskTree();
+
+  useEffect(() => {
+    fetchData(setTaskTree);
+  }, [setTaskTree]);
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [lastValidId, setLastValidId] = useState<string | null>(null);
@@ -134,7 +43,7 @@ const TaskList: React.FC = () => {
       const parentInData = findParentTask(taskTree, active.id.toString());
 
       if (parentInData && parentInData.children) {
-        const ids = parentInData.children.map((child) => child.id);
+        const ids = parentInData.children.map((child) => child.taskId);
         if (ids.includes(over.id.toString())) {
           setLastValidId(over.id.toString());
         }
@@ -160,27 +69,30 @@ const TaskList: React.FC = () => {
         // 親が存在し、親が同じ場合のみ移動を許可
         if (
           destinationParent &&
-          sourceParent.id === destinationParent.id &&
+          sourceParent.taskId === destinationParent.taskId &&
           sourceId !== destinationId
         ) {
-          setTaskTree((prevData) => {
-            const newData = { ...prevData };
-            const parentInData = findTaskById(newData, sourceParent.id);
+          const newData = { ...taskTree };
+          const parentInData = findTaskById(newData, sourceParent.taskId);
 
-            if (parentInData && parentInData.children) {
-              const ids = parentInData.children.map((child) => child.id);
-              const oldIndex = ids.indexOf(sourceId);
-              const newIndex = ids.indexOf(destinationId);
+          if (parentInData && parentInData.children) {
+            const ids = parentInData.children.map((child) => child.taskId);
+            const oldIndex = ids.indexOf(sourceId);
+            const newIndex = ids.indexOf(destinationId);
 
-              parentInData.children = arrayMove(
-                parentInData.children,
-                oldIndex,
-                newIndex
-              );
-            }
+            parentInData.children = arrayMove(
+              parentInData.children,
+              oldIndex,
+              newIndex
+            );
+          }
 
-            return newData;
+          newData.children.forEach((item, index) => {
+            item.position = index;
           });
+
+          setTaskTree(newData);
+          updateTaskList(setTaskTree, taskTree, newData.children);
         }
 
         setActiveId(null);
@@ -193,7 +105,10 @@ const TaskList: React.FC = () => {
 
   return (
     <div>
-      <div className="m-4 border-2 rounded-md">
+      <p>
+        <strong>チェックリスト</strong>
+      </p>
+      <div className="my-2 border-2 rounded-md bg-white">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -202,19 +117,9 @@ const TaskList: React.FC = () => {
           onDragEnd={handleDragEnd}
           modifiers={[restrictToVerticalAxis]}
         >
-          <TaskContent
-            key={taskTree.id}
-            taskTree={taskTree}
-            setTaskTree={setTaskTree}
-          />
+          <TaskContent key={taskTree.taskId} taskTree={taskTree} />
           <DragOverlay>
-            {activeTask && (
-              <TaskContent
-                taskTree={activeTask}
-                setTaskTree={setTaskTree}
-                isOverlay
-              />
-            )}
+            {activeTask && <TaskContent taskTree={activeTask} isOverlay />}
           </DragOverlay>
         </DndContext>
       </div>

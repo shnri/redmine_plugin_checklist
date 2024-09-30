@@ -1,7 +1,8 @@
 export interface TaskTree {
-  id: string;
+  taskId: string;
   label: string;
   checked: boolean;
   isLayerOpen: boolean;
+  position: number;
   children: TaskTree[];
 }

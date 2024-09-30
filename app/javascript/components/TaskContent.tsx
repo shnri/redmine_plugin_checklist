@@ -16,13 +16,14 @@ import { deleteTaskTreeItem, updateTaskTree } from "../utils";
 import AddTask from "./AddTask";
 import { rootId } from "./TaskList";
 import { IconButton } from "@mui/material";
+import { useTaskTree } from "./TaskTreeProvider";
+import { deleteTask, updateTaskList } from "../utils/apiHelper";
 
 const TaskContent: React.FC<{
   taskTree: TaskTree;
-  setTaskTree: React.Dispatch<React.SetStateAction<TaskTree>>;
   isOverlay?: boolean;
   style?: React.CSSProperties;
-}> = ({ taskTree, setTaskTree, isOverlay = false, style = {} }) => {
+}> = ({ taskTree: myTaskTree, isOverlay = false, style = {} }) => {
   const {
     attributes,
     listeners,
@@ -30,11 +31,12 @@ const TaskContent: React.FC<{
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: taskTree.id });
+  } = useSortable({ id: myTaskTree.taskId });
+
+  const { taskTree, setTaskTree } = useTaskTree();
 
   const baseStyle: React.CSSProperties = {
     borderColor: "#afbbc0",
-    backgroundColor: "white",
     opacity: isDragging || isOverlay ? 0.5 : 1,
   };
 
@@ -44,16 +46,16 @@ const TaskContent: React.FC<{
   }
 
   useEffect(() => {
-    if (taskTree.children.length > 0) {
+    if (myTaskTree.children.length > 0) {
       const allChecked =
-        taskTree.children.find((e) => !e.checked) === undefined;
+        myTaskTree.children.find((e) => !e.checked) === undefined;
       // サブタスクがすべてチェック済であれば、タスクにチェックを入れる
       // サブタスクに未チェックがあれば、タスクのチェックを外す
-      if (taskTree.checked !== allChecked) {
-        updateTaskTree(setTaskTree, taskTree.id, "checked", allChecked);
+      if (myTaskTree.checked !== allChecked) {
+        updateTaskTree(setTaskTree, myTaskTree.taskId, "checked", allChecked);
       }
     }
-  }, [taskTree, setTaskTree]);
+  }, [myTaskTree, setTaskTree]);
 
   // contentEditableな要素の参照
   const editableRef = useRef<HTMLDivElement>(null);
@@ -62,7 +64,13 @@ const TaskContent: React.FC<{
   const handleBlur = () => {
     if (editableRef.current) {
       const newText = editableRef.current.innerText;
-      updateTaskTree(setTaskTree, taskTree.id, "label", newText);
+      updateTaskTree(setTaskTree, myTaskTree.taskId, "label", newText);
+      updateTaskList(setTaskTree, taskTree, [
+        {
+          ...myTaskTree,
+          label: newText,
+        },
+      ]);
     }
   };
 
@@ -77,7 +85,17 @@ const TaskContent: React.FC<{
   };
 
   const handleDelete = () => {
-    deleteTaskTreeItem(setTaskTree, taskTree.id);
+    deleteTaskTreeItem(setTaskTree, myTaskTree.taskId);
+  };
+
+  const handleLayerOpen = (isLayerOpen: boolean) => {
+    updateTaskTree(setTaskTree, myTaskTree.taskId, "isLayerOpen", isLayerOpen);
+    updateTaskList(setTaskTree, taskTree, [
+      {
+        ...myTaskTree,
+        isLayerOpen: isLayerOpen,
+      },
+    ]);
   };
 
   return (
@@ -87,7 +105,7 @@ const TaskContent: React.FC<{
       style={{ ...baseStyle, ...style }}
       className="rounded-md"
     >
-      {taskTree.id === rootId ? (
+      {myTaskTree.taskId === rootId ? (
         <></>
       ) : (
         <div
@@ -113,19 +131,17 @@ const TaskContent: React.FC<{
             />
           </div>
           <div className={"text-gray-400 " + (!isHovered ? "invisible" : "")}>
-            {taskTree.isLayerOpen ? (
+            {myTaskTree.isLayerOpen ? (
               <KeyboardArrowDownIcon
-                onClick={() =>
-                  // 階層を開く
-                  updateTaskTree(setTaskTree, taskTree.id, "isLayerOpen", false)
-                }
+                onClick={() => {
+                  handleLayerOpen(false);
+                }}
               />
             ) : (
               <KeyboardArrowRightIcon
-                onClick={() =>
-                  // 階層を閉じる
-                  updateTaskTree(setTaskTree, taskTree.id, "isLayerOpen", true)
-                }
+                onClick={() => {
+                  handleLayerOpen(true);
+                }}
               />
             )}
           </div>
@@ -136,20 +152,25 @@ const TaskContent: React.FC<{
             */}
             <IconButton
               style={{
-                opacity: taskTree.children.length > 0 ? 0.7 : 1,
+                opacity: myTaskTree.children.length > 0 ? 0.7 : 1,
               }}
-              disabled={taskTree.children.length > 0}
-              onClick={() =>
-                // ON->OFF
+              disabled={myTaskTree.children.length > 0}
+              onClick={() => {
                 updateTaskTree(
                   setTaskTree,
-                  taskTree.id,
+                  myTaskTree.taskId,
                   "checked",
-                  !taskTree.checked
-                )
-              }
+                  !myTaskTree.checked
+                );
+                updateTaskList(setTaskTree, taskTree, [
+                  {
+                    ...myTaskTree,
+                    checked: !myTaskTree.checked,
+                  },
+                ]);
+              }}
             >
-              {taskTree.checked ? (
+              {myTaskTree.checked ? (
                 <CheckCircleIcon className="text-green-700" />
               ) : (
                 <CheckCircleOutlineIcon className="text-gray-400" />
@@ -160,7 +181,7 @@ const TaskContent: React.FC<{
           <div
             ref={editableRef}
             className={
-              (taskTree.checked ? "line-through text-gray-500 " : "") +
+              (myTaskTree.checked ? "line-through text-gray-500 " : "") +
               "content_placeholder flex-1 break-all px-[8px] h-8 rounded-[6px] border-0 outline-none text-[14px] focus:bg-gray-200"
             }
             contentEditable={true}
@@ -175,41 +196,38 @@ const TaskContent: React.FC<{
             }}
             style={{ cursor: "text" }}
           >
-            <div className="  h-8 py-[6px] border-b-2">{taskTree.label}</div>
+            <div className="  h-8 py-[6px] border-b-2">{myTaskTree.label}</div>
           </div>
           <DeleteForeverIcon
             className={"text-gray-400 " + (isHovered ? "" : "invisible")}
             onClick={() => {
               const shouldDelete = window.confirm(
-                taskTree.label + "を削除しますか？"
+                myTaskTree.label + "を削除しますか？"
               );
               if (shouldDelete) {
                 handleDelete();
+                deleteTask(setTaskTree, myTaskTree.taskId);
               }
             }}
           />
         </div>
       )}
-      {taskTree.children && taskTree.isLayerOpen && (
+      {myTaskTree.children && myTaskTree.isLayerOpen && (
         <SortableContext
-          items={taskTree.children.map((child) => child.id)}
+          items={myTaskTree.children.map((child) => child.taskId)}
           strategy={verticalListSortingStrategy}
         >
           <div
             className={
-              (taskTree.id === rootId ? "" : "ml-8 ") +
-              (taskTree.children.length > 0 ? " mb-3" : "")
+              (myTaskTree.taskId === rootId ? "" : "ml-8 ") +
+              (myTaskTree.children.length > 0 ? " mb-3" : "")
             }
           >
-            {taskTree.children.map((child) => (
-              <TaskContent
-                key={child.id}
-                taskTree={child}
-                setTaskTree={setTaskTree}
-              />
+            {myTaskTree.children.map((child) => (
+              <TaskContent key={child.taskId} taskTree={child} />
             ))}
           </div>
-          <AddTask taskTree={taskTree} setTaskTree={setTaskTree} />
+          <AddTask taskTree={myTaskTree} />
         </SortableContext>
       )}
     </div>

@@ -1,7 +1,7 @@
 class ChecklistItem < ActiveRecord::Base
   belongs_to :issue
   belongs_to :parent, class_name: 'ChecklistItem', optional: true
-  has_many :children, class_name: 'ChecklistItem', foreign_key: 'parent_id'
+  has_many :children, class_name: 'ChecklistItem', foreign_key: 'parent_id', dependent: :destroy
 
-  validates :description, presence: true
+  validates :label, presence: true
 end

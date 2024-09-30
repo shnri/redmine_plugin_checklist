@@ -1,3 +1,5 @@
+require_dependency File.expand_path('../app/models/issue_patch', __FILE__)
+
 Redmine::Plugin.register :check_list do
   name 'Check List plugin'
   author 'shinri'

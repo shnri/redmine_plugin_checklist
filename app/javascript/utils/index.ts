@@ -21,7 +21,7 @@ export const updateTaskTree = <K extends keyof TaskTree>(
     value: TaskTree[K]
   ): TaskTree => {
     // IDが一致する場合は、値を更新する
-    if (taskTree.id === targetId) {
+    if (taskTree.taskId === targetId) {
       return {
         ...taskTree,
         [key]: value,
@@ -64,7 +64,7 @@ export const deleteTaskTreeItem = (
    */
   const remove = (taskTree: TaskTree, targetId: string): TaskTree | null => {
     // タスクツリーのIDが一致した場合はnullを返す（このオブジェクトを削除）
-    if (taskTree.id === targetId) {
+    if (taskTree.taskId === targetId) {
       return null;
     }
 
@@ -97,7 +97,7 @@ export const findParentTask = (
   targetId: string,
   parent: TaskTree | null = null
 ): TaskTree | null => {
-  if (root.id === targetId) {
+  if (root.taskId === targetId) {
     return parent;
   } else if (root.children) {
     for (const child of root.children) {
@@ -115,7 +115,7 @@ export const findTaskById = (
   root: TaskTree,
   targetId: string
 ): TaskTree | null => {
-  if (root.id === targetId) {
+  if (root.taskId === targetId) {
     return root;
   } else if (root.children) {
     for (const child of root.children) {

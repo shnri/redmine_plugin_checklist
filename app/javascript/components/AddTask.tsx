@@ -2,26 +2,30 @@ import React, { useState } from "react";
 import { TaskTree } from "../types";
 import { updateTaskTree } from "../utils";
 import { rootId } from "./TaskList";
+import { useTaskTree } from "./TaskTreeProvider";
+import { createTask } from "../utils/apiHelper";
+import { v4 as uuidv4 } from "uuid";
 
-const initTask = () => ({
-  id: Math.random().toString(),
+const initTask = (): TaskTree => ({
+  taskId: uuidv4(),
   label: "",
   checked: false,
   isLayerOpen: false,
+  position: 0,
   children: [],
 });
 
 const AddTask: React.FC<{
   taskTree: TaskTree;
-  setTaskTree: React.Dispatch<React.SetStateAction<TaskTree>>;
-}> = ({ taskTree, setTaskTree }) => {
+}> = ({ taskTree: myTaskTree }) => {
+  const { setTaskTree } = useTaskTree();
   const [newTaskLabel, setNewTaskLabel] = useState<string>("");
 
   return (
     <div
       className={
         "my-2 mr-[40px] " +
-        (taskTree.id === rootId ? "ml-[4.5rem]" : "ml-[6.5rem]")
+        (myTaskTree.taskId === rootId ? "ml-[4.5rem]" : "ml-[6.5rem]")
       }
     >
       <input
@@ -40,7 +44,7 @@ const AddTask: React.FC<{
         bg-gray-200"
         onChange={(e) => setNewTaskLabel(e.target.value)}
         placeholder={
-          taskTree.id === rootId
+          myTaskTree.taskId === rootId
             ? "チェック項目を追加する..."
             : "サブチェック項目を追加する..."
         }
@@ -48,12 +52,23 @@ const AddTask: React.FC<{
           if (e.key === "Enter") {
             e.preventDefault();
             // エンターでタスクを追加する
+            const newTask = {
+              ...initTask(),
+              position:
+                myTaskTree.children.length > 0
+                  ? Math.max(
+                      ...myTaskTree.children.map((item) => item.position)
+                    ) + 1
+                  : 0,
+              label: newTaskLabel.trim(),
+            };
             if (newTaskLabel.trim()) {
-              updateTaskTree(setTaskTree, taskTree.id, "children", [
-                ...taskTree.children,
-                { ...initTask(), label: newTaskLabel.trim() },
+              updateTaskTree(setTaskTree, myTaskTree.taskId, "children", [
+                ...myTaskTree.children,
+                newTask,
               ]);
               setNewTaskLabel("");
+              createTask(setTaskTree, newTask, myTaskTree.taskId);
             }
           }
         }}
