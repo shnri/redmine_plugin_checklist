@@ -1,3 +1,0 @@
-= check_list
-
-Description goes here
