@@ -104,7 +104,10 @@ const TaskList: React.FC = () => {
 
   return (
     <div>
-      <div className="m-4 border-2 rounded-md bg-white">
+      <p>
+        <strong>チェックリスト</strong>
+      </p>
+      <div className="my-2 border-2 rounded-md bg-white">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
