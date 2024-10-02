@@ -85,14 +85,13 @@ const TaskList: React.FC = () => {
               oldIndex,
               newIndex
             );
+
+            parentInData.children.forEach((item, index) => {
+              item.position = index;
+            });
+            setTaskTree(newData);
+            updateTaskList(setTaskTree, taskTree, parentInData.children);
           }
-
-          newData.children.forEach((item, index) => {
-            item.position = index;
-          });
-
-          setTaskTree(newData);
-          updateTaskList(setTaskTree, taskTree, newData.children);
         }
 
         setActiveId(null);
@@ -105,10 +104,7 @@ const TaskList: React.FC = () => {
 
   return (
     <div>
-      <p>
-        <strong>チェックリスト</strong>
-      </p>
-      <div className="my-2 border-2 rounded-md bg-white">
+      <div className="m-4 border-2 rounded-md bg-white">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
