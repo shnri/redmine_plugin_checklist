@@ -1,26 +1,52 @@
 import { findParentTask } from ".";
 import { TaskTree } from "../types";
 
-interface request {
-  method: string;
-  headers?: {
-    "Content-Type": string;
-    "X-Redmine-API-Key"?: string;
-  };
-  body?: string;
+const getIssueEndpoint = (issueId: string, path: string = ""): string => {
+  const API_BASE_URL = "/issues";
+  return `${API_BASE_URL}/${issueId}/checklist_items${path}`;
+};
+
+const getRequestHeaders = (): HeadersInit => ({
+  "Content-Type": "application/json",
+});
+
+interface ResponseMsg {
+  message: string;
+  task_id: string;
 }
 
-const getIssueId = () => {
+const apiRequest = async <T>(
+  endpoint: string,
+  options: RequestInit
+): Promise<T> => {
+  const response = await fetch(endpoint, options);
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`API Error: ${response.status} ${errorText}`);
+  }
+  const data = await response.json();
+  return data;
+};
+
+const getIssueId = (): string => {
   const path = window.location.pathname;
   const issueId = path.split("/").pop();
-
+  if (!issueId) {
+    throw new Error("Issue ID not found in the URL");
+  }
   return issueId;
 };
 
-const rollback = (
+const rollback = async (
   setTaskTree: React.Dispatch<React.SetStateAction<TaskTree>>
 ) => {
-  fetchData(setTaskTree);
+  try {
+    await fetchData(setTaskTree);
+    window.alert("更新が失敗しましたので変更を元に戻しました。");
+  } catch (error) {
+    console.error(error);
+    window.alert("更新が失敗しました。");
+  }
 };
 
 export const createTask = async (
@@ -29,27 +55,20 @@ export const createTask = async (
   parentId: string
 ) => {
   try {
-    const requestInfo: request = {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+    const body = {
+      checklist_item: {
+        ...targetTaskTree,
+        parentId: parentId,
       },
-      body: JSON.stringify({
-        checklist_item: {
-          ...targetTaskTree,
-          parentId: parentId,
-        },
-      }),
     };
 
-    const response = await fetch(
-      `/issues/${getIssueId()}/checklist_items.json`,
-      requestInfo
-    );
+    await apiRequest<ResponseMsg>(getIssueEndpoint(getIssueId()) + ".json", {
+      method: "POST",
+      headers: getRequestHeaders(),
+      body: JSON.stringify(body),
+    });
 
-    if (!response.ok) {
-      throw new Error("Failed to add task");
-    }
+    await fetchData(setTaskTree); // 状態を最新に更新
   } catch (error) {
     console.error(error);
     rollback(setTaskTree);
@@ -61,14 +80,15 @@ export const deleteTask = async (
   targetTaskId: string
 ) => {
   try {
-    const response = await fetch(
-      `/issues/${getIssueId()}/checklist_items/${targetTaskId}.json`,
-      { method: "DELETE" }
+    await apiRequest<ResponseMsg>(
+      getIssueEndpoint(getIssueId(), `/${targetTaskId}.json`),
+      {
+        method: "DELETE",
+        headers: getRequestHeaders(),
+      }
     );
 
-    if (!response.ok) {
-      throw new Error("Failed to delete task");
-    }
+    await fetchData(setTaskTree); // 状態を最新に更新
   } catch (error) {
     console.error(error);
     rollback(setTaskTree);
@@ -79,30 +99,25 @@ export const updateTaskList = async (
   setTaskTree: React.Dispatch<React.SetStateAction<TaskTree>>,
   taskTree: TaskTree,
   targetTaskTreeList: TaskTree[]
-) => {
+): Promise<void> => {
   const data = targetTaskTreeList.map((targetTaskTree) => ({
     ...targetTaskTree,
     parentId: findParentTask(taskTree, targetTaskTree.taskId ?? "")?.taskId,
   }));
   try {
-    const requestInfo: request = {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        checklist_items: { data },
-      }),
+    const body = {
+      checklist_items: { data },
     };
-
-    const response = await fetch(
-      `/issues/${getIssueId()}/checklist_items/bulk_update.json`,
-      requestInfo
+    await apiRequest<ResponseMsg>(
+      getIssueEndpoint(getIssueId(), "/bulk_update.json"),
+      {
+        method: "PUT",
+        headers: getRequestHeaders(),
+        body: JSON.stringify(body),
+      }
     );
 
-    if (!response.ok) {
-      throw new Error("Failed to add task");
-    }
+    await fetchData(setTaskTree); // 状態を最新に更新
   } catch (error) {
     console.error(error);
     rollback(setTaskTree);
@@ -113,36 +128,37 @@ export const updateTaskList = async (
 export const fetchData = async (
   setTaskTree: React.Dispatch<React.SetStateAction<TaskTree>>
 ) => {
-  const issueId = getIssueId();
   try {
-    if (issueId) {
-      fetch(`/issues/${issueId}/checklist_items.json`)
-        .then((response) => response.json())
-        .then((data) => {
-          const sortTaskNode = (taskTree: TaskTree): TaskTree => {
-            if (!taskTree.children || taskTree.children.length === 0) {
-              return taskTree;
-            }
+    const issueId = getIssueId();
+    const data = await apiRequest<TaskTree[]>(
+      getIssueEndpoint(issueId) + ".json",
+      {
+        method: "GET",
+        headers: getRequestHeaders(),
+      }
+    );
 
-            // childrenが存在する場合、それを再帰的にソート
-            const sortedChildren = taskTree.children
-              .sort((a, b) => a.position - b.position)
-              .map((child) => sortTaskNode(child));
+    const sortTaskNode = (taskTree: TaskTree): TaskTree => {
+      if (!taskTree.children || taskTree.children.length === 0) {
+        return taskTree;
+      }
 
-            // 元のノードをコピーし、ソートされたchildrenを持たせる
-            return {
-              ...taskTree,
-              children: sortedChildren,
-            };
-          };
+      // childrenが存在する場合、それを再帰的にソート
+      const sortedChildren = taskTree.children
+        .sort((a, b) => a.position - b.position)
+        .map((child) => sortTaskNode(child));
 
-          if (data.length !== 0) {
-            setTaskTree(sortTaskNode(data[0])); // データを状態に保存
-          }
-        });
+      return {
+        ...taskTree,
+        children: sortedChildren,
+      };
+    };
+
+    if (data.length !== 0) {
+      setTaskTree(sortTaskNode(data[0]));
     }
   } catch (error) {
     console.error("Error fetching latest data:", error);
-    throw error; // エラーをキャッチした側で扱う
+    throw error;
   }
 };
