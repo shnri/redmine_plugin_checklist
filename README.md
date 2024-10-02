@@ -29,22 +29,30 @@
    git clone https://github.com/shnri/redmine_plugin_checklist.git
 
 2. **ビルド**
+   
+   プラグインのディレクトリに移動して、ビルドを実行します。
    ```bash
-   /path/to/redmine/plugins/check_list
+   cd /path/to/redmine/plugins/check_list
    npm run build
 
-3. **アセット**
+4. **アセットのプリコンパイル**
+   
+   Redmineのルートディレクトリに移動し、アセットをプリコンパイルします。
    ```bash
    cd /path/to/redmine/
    bundle exec rake redmine:plugins:assets RAILS_ENV=production
 
-4. **データベースのマイグレーション**
+6. **データベースのマイグレーション**
+
+   データベースのマイグレーションを実行します。
    ```bash
    bundle exec rake redmine:plugins:migrate RAILS_ENV=production
 
-5. **Redmineの再起動**
+8. **Redmineの再起動**
+   
+   サーバーを再起動して変更を適用します。
    ```bash
-   bundle exec rails
+   systemctl restart redmine
 
 ### 動作確認バージョン
 
