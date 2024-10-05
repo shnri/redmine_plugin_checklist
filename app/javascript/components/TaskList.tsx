@@ -13,7 +13,7 @@ import { arrayMove } from "@dnd-kit/sortable";
 import React, { useEffect, useState } from "react";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import TaskContent from "./TaskContent";
-import { findParentTask, findTaskById } from "../utils";
+import { findParentTask, findTaskById } from "../utils/taskTreeUtils";
 import { useTaskTree } from "./TaskTreeProvider";
 import { fetchData, updateTaskList } from "../utils/apiHelper";
 
@@ -26,8 +26,11 @@ const TaskList: React.FC = () => {
     fetchData(setTaskTree);
   }, [setTaskTree]);
 
+  // ドラッグ中のアクティブなタスクID
   const [activeId, setActiveId] = useState<string | null>(null);
+  // 最後に有効なドロップ先ID
   const [lastValidId, setLastValidId] = useState<string | null>(null);
+
   const sensors = useSensors(useSensor(PointerSensor));
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -86,6 +89,7 @@ const TaskList: React.FC = () => {
               newIndex
             );
 
+            // 並び位置を更新
             parentInData.children.forEach((item, index) => {
               item.position = index;
             });
@@ -110,11 +114,11 @@ const TaskList: React.FC = () => {
       <div className="my-2 border-2 rounded-md bg-white">
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={closestCenter}// 要素の中心に最も近いドロップ先を検出
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
-          modifiers={[restrictToVerticalAxis]}
+          modifiers={[restrictToVerticalAxis]}// ドラッグ操作を垂直方向に制限する
         >
           <TaskContent key={taskTree.taskId} taskTree={taskTree} />
           <DragOverlay>

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { TaskTree } from "../types";
-import { updateTaskTree } from "../utils";
+import { updateTaskTree } from "../utils/taskTreeActions";
 import { rootId } from "./TaskList";
 import { useTaskTree } from "./TaskTreeProvider";
 import { createTask } from "../utils/apiHelper";

@@ -1,4 +1,5 @@
-import { findParentTask } from ".";
+import { findParentTask } from "./taskTreeUtils";
+
 import { TaskTree } from "../types";
 
 const getIssueEndpoint = (issueId: string, path: string = ""): string => {
@@ -42,10 +43,10 @@ const rollback = async (
 ) => {
   try {
     await fetchData(setTaskTree);
-    window.alert("更新が失敗しましたので変更を元に戻しました。");
+    window.alert("更新に失敗したため、変更を元の状態に戻します。");
   } catch (error) {
     console.error(error);
-    window.alert("更新が失敗しました。");
+    window.alert("更新が失敗しました。ネットワークエラーの可能性があります。もう一度試すか、時間をおいて再度お試しください。");
   }
 };
 

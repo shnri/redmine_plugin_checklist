@@ -12,7 +12,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 import { TaskTree } from "../types";
-import { deleteTaskTreeItem, updateTaskTree } from "../utils";
+import { deleteTaskTreeItem, updateTaskTree } from "../utils/taskTreeActions";
 import AddTask from "./AddTask";
 import { rootId } from "./TaskList";
 import { IconButton } from "@mui/material";
